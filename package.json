@@ -1,0 +1,21 @@
+{
+  "name": "primeira-api",
+  "version": "1.0.0",
+  "description": "minha primeira api",
+  "keywords": [
+    "primeira",
+    "api"
+  ],
+  "license": "ISC",
+  "author": "Caua Aguiar",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./",
+    "start:dev": "nodemon **app.js**"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}
