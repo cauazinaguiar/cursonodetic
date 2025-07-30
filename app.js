@@ -1,50 +1,79 @@
-import http from "http"; // importar o http
-import fs from "fs"; //importar o fs(fs.writeFile, fs.writeFile)
-import rotas from "./routes.js"; //importar as rotas utilizadas
-import sqlite3 from "sqlite3";//  importar o sqlite3 para usar o db
+// Importa o módulo HTTP nativo do Node.js para criar o servidor
+import http from "http";
 
-const db = new sqlite3.Database("./tic.db", (erro) =>{
-    if(erro) {
-        console.log("Falha ao inicializar o bando de dados");
+// Importa o módulo `fs` (file system) para manipulação de arquivos (ler, escrever, etc.)
+import fs from "fs";
+
+// Importa as rotas definidas no arquivo routes.js (responsável por tratar os endpoints da API)
+import rotas from "./routes.js";
+
+// Importa o SQLite3, um banco de dados leve baseado em arquivos
+import sqlite3 from "sqlite3";
+
+// Importa a instância do Sequelize já configurada com SQLite
+import { sequelize } from "./models.js";
+
+
+// Inicializa o banco SQLite, apontando para o arquivo tic.db
+const db = new sqlite3.Database("./tic.db", (erro) => {
+    if (erro) {
+        console.log("Falha ao inicializar o banco de dados");
         return;
     }
     console.log("Banco de dados inicializado corretamente");
 });
 
-// abre a "função" fs.writeFile em que nela vc cria e escreve um arquivo
-fs.writeFile("./mensagem.txt", "ola tic em trilhas do arquivo", "utf-8", (erro)=>{ //parametros: "./nome do arquivo", "conteudo do arquivo/frase digitada", "utf-8(formatação)", (erro(para usar dentro da funcao))
-    if (erro) {
-        console.log("Falha ao escrever o arquivo", erro);
-        return;
+
+// Cria e escreve um conteúdo no arquivo mensagem.txt
+fs.writeFile(
+    "./mensagem.txt",                      // Caminho e nome do arquivo
+    "ola tic em trilhas do arquivo",       // Conteúdo que será gravado
+    "utf-8",                               // Codificação de caracteres
+    (erro) => {                            // Função callback para tratar o resultado
+        if (erro) {
+            console.log("Falha ao escrever o arquivo", erro);
+            return;
+        }
+        console.log("Arquivo criado com sucesso");
     }
-    console.log("arquivo criado com sucesso");
-});
+);
 
 
-// abre a "função" fs.readFile em que nela vc le oq tem no arquivo
-fs.readFile("./mensagem.txt", "utf-8", (erro, conteudo)=>{ //parametros: "./nome do arquivo", "utf-8(formatação)", (erro,conteudo(para usar dentro da funcao))
-if (erro) {
-    console.log("falha na leitura do arquivo", erro);
-    return;
+// Lê o conteúdo do arquivo mensagem.txt
+fs.readFile(
+    "./mensagem.txt",                      // Caminho e nome do arquivo
+    "utf-8",                               // Codificação para ler corretamente o texto
+    (erro, conteudo) => {                  // Callback que retorna erro ou conteúdo
+        if (erro) {
+            console.log("Falha na leitura do arquivo", erro);
+            return;
+        }
+
+        console.log(`Conteúdo do arquivo: ${conteudo}`);
+
+        // Após ler o conteúdo do arquivo, inicializa o servidor HTTP passando esse conteúdo
+        iniciaServidor(conteudo);
     }
-    console.log(`Conteudo do arquivo: ${conteudo}`);
-
-    iniciaServidor(conteudo); //chama a funcao de iniciar servidor dps de ler o arquivo
-});
+);
 
 
-//funcao de iniciar o servidor 
-function iniciaServidor(conteudo) {
-    const servidor = http.createServer((req, res) =>{ //declara uma constante de servidor e puxa a funcao de http.createServer para criar um servidor
-        rotas(req,res, {conteudo}); // chama a rota de conteudo(funcao) contido no arquivo "routes.js"
-});
+// Função responsável por iniciar o servidor
+async function iniciaServidor(conteudo) {
+    // Garante que todas as tabelas estejam sincronizadas com o banco de dados antes de iniciar o servidor
+    await sequelize.sync();
 
-const porta = 3000; //porta com num 3000
-const host = "localhost"; //host com nome de localhost
+    // Cria o servidor HTTP
+    const servidor = http.createServer((req, res) => {
+        // A cada requisição, chama a função rotas passando a requisição, resposta e o conteúdo do arquivo lido
+        rotas(req, res, { conteudo });
+    });
 
-servidor.listen(porta, host, () =>{ // ouvir, com servidor.listen que quando realmente estiver funcionando o servidor, ira aparecer a mensagem
-    console.log(`Servidor executando em http://${host}:${porta}/`); 
-});
+    // Define a porta e o host do servidor
+    const porta = 3000;
+    const host = "localhost";
 
-};
-
+    // Inicia o servidor e escuta requisições HTTP na porta e host definidos
+    servidor.listen(porta, host, () => {
+        console.log(`Servidor executando em http://${host}:${porta}/`);
+    });
+}

@@ -16,6 +16,7 @@
     "start:dev": "nodemon **app.js**"
   },
   "dependencies": {
+    "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7"
   }
 }
