@@ -9,7 +9,7 @@ import {
     lerProdutosPorID,
     atualizarProdutoPorID,
     deletarProdutoPorID
-} from "./models";
+} from "./models.js";
 
 // Função principal de roteamento para tratar as requisições HTTP
 export default async function rotas(req, res, dado) {
@@ -144,6 +144,10 @@ export default async function rotas(req, res, dado) {
                 const resposta = await atualizarProdutoPorID(id, produto);
 
                 res.statusCode = 200; // Sucesso
+
+                if(!resposta){
+                    res.statusCode = 404;
+                }
                 res.end(JSON.stringify(resposta));
                 return;
             } catch (erro) {
@@ -189,26 +193,98 @@ export default async function rotas(req, res, dado) {
 
         try {
             // Tenta deletar o produto
-            const resposta = await deletarProdutoPorID(id);
+            const encontrado = await deletarProdutoPorID(id);
+
+            res.statusCode = 204; // No Content — sucesso sem conteúdo de resposta
+
+            if(!encontrado){
+                res.statusCode = 404;
+            }
+
+            res.end();
+        
+            return;
         } catch (erro) {
             console.log("Falha ao remover produto", erro);
             res.statusCode = 500;
 
             const resposta = {
                 erro: {
-                    mensagem: `Falha ao atualizar produto ${produto.nome}` // Cuidado: variável "produto" não existe aqui!
+                    mensagem: `Falha ao deletar produto ${id}`
                 }
             };
 
             res.end(JSON.stringify(resposta));
+
             return;
         }
-
-        res.statusCode = 204; // No Content — sucesso sem conteúdo de resposta
-        res.end();
-        return;
     }
 
+    if (
+        req.method === "GET" &&
+        req.url.split("/")[1] === "produtos" &&
+        !isNaN(req.url.split("/")[2]) // verifica se é número
+    ) {
+        const id = req.url.split("/")[2]; // Extrai o ID da URL
+
+        try {
+            // Tenta ler o produto
+            const resposta= await lerProdutosPorID(id);
+
+            res.statusCode = 200; // No Content — sucesso sem conteúdo de resposta
+        
+            if(!resposta){
+                res.statusCode = 404;
+            }
+            
+            res.end(JSON.stringify(resposta));
+        
+            return;
+        } catch (erro) {
+            console.log("Falha ao buscar produto", erro);
+            res.statusCode = 500;
+
+            const resposta = {
+                erro: {
+                    mensagem: `Falha ao buscar produto ${id}`
+                }
+            };
+
+            res.end(JSON.stringify(resposta));
+
+            return;
+        }
+    }
+
+    if (
+        req.method === "GET" &&
+        req.url === "/produtos"
+    ) {
+
+        try {
+            // Tenta ler o produto
+            const resposta = await lerProdutos();
+
+            res.statusCode = 200; // No Content — sucesso sem conteúdo de resposta
+        
+            res.end(JSON.stringify(resposta));
+        
+            return;
+        } catch (erro) {
+            console.log("Falha ao buscar produtos", erro);
+            res.statusCode = 500;
+
+            const resposta = {
+                erro: {
+                    mensagem: `Falha ao buscar produtos`
+                }
+            };
+
+            res.end(JSON.stringify(resposta));
+
+            return;
+        }
+    }
     // Caso a rota não seja encontrada, retorna erro 404
     res.statusCode = 404;
 

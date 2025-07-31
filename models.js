@@ -1,89 +1,120 @@
-// Importa o módulo Sequelize, que é o ORM (Object Relational Mapper) para manipulação do banco de dados
 import { Sequelize } from "sequelize";
 
-// Cria uma instância do Sequelize, conectando ao banco SQLite chamado "tic.db"
+// Conexão com SQLite
 export const sequelize = new Sequelize({
-    dialect: "sqlite",     // Tipo do banco (neste caso, SQLite)
-    storage: "./tic.db"    // Caminho onde o arquivo do banco será salvo
+  dialect: "sqlite",
+  storage: "./tic.db",
+  logging: console.log // mostra os comandos no terminal
 });
 
-// Tenta autenticar a conexão com o banco de dados
+// Tenta autenticar a conexão
 sequelize.authenticate();
 
-// Define um modelo chamado "Produto" com os seguintes campos:
+// Tabela Produto
 export const Produto = sequelize.define("produto", {
-    id: {
-        type: Sequelize.INTEGER,     // Tipo inteiro
-        primaryKey: true,            // Chave primária
-        autoIncrement: true          // Autoincremento (incrementa automaticamente a cada novo registro)
-    },
-    nome: {
-        type: Sequelize.STRING,      // Texto (string)
-        allowNull: false,            // Campo obrigatório
-        unique: true                 // Valor único (não pode ter dois produtos com o mesmo nome)
-    },
-    preco: {
-        type: Sequelize.DOUBLE,      // Número decimal
-        allowNull: false             // Campo obrigatório
-    }
+  id: {
+    type: Sequelize.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  nome: {
+    type: Sequelize.STRING,
+    allowNull: false,
+    unique: true
+  },
+  preco: {
+    type: Sequelize.DOUBLE,
+    allowNull: false
+  }
 });
 
-// Função para criar um novo produto no banco de dados
+// Tabela Pedido
+const Pedido = sequelize.define("pedido", {
+  id: {
+    type: Sequelize.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  valor_total: {
+    type: Sequelize.DOUBLE,
+    allowNull: false
+  },
+  estado: {
+    type: Sequelize.STRING,
+    allowNull: false
+  }
+});
+
+// Tabela de junção com campos extras
+const produtosPedido = sequelize.define("produtos_pedido", {
+  id: {
+    type: Sequelize.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  quantidade: {
+    type: Sequelize.INTEGER,
+    allowNull: false
+  },
+  preco: {
+    type: Sequelize.DOUBLE,
+    allowNull: false
+  }
+});
+
+// Relacionamentos com chave clara
+Produto.belongsToMany(Pedido, {
+  through: produtosPedido,
+  foreignKey: "produtoId",
+  otherKey: "pedidoId"
+});
+Pedido.belongsToMany(Produto, {
+  through: produtosPedido,
+  foreignKey: "pedidoId",
+  otherKey: "produtoId"
+});
+
+// Funções CRUD
+
 export async function criarProduto(produto) {
-    try {
-        // Usa o método `create` do Sequelize para inserir o produto no banco
-        const resultado = await Produto.create(produto);
-        console.log(`O ${resultado.nome} foi criado com sucesso`);
-        return resultado; // Retorna o produto criado
-    } catch (erro) {
-        console.log("Erro ao criar o produto", erro);
-        throw erro; // Lança o erro para tratamento posterior
-    }
+  return await Produto.create(produto);
 }
 
-// Função para buscar todos os produtos no banco
-export async function lerProdutos() {
-    try {
-        // Retorna todos os registros da tabela Produto
-        const resultado = await Produto.findAll();
-        console.log(`Produtos consultados com sucesso!`, resultado);
-    } catch (erro) {
-        console.log("Erro ao buscar os produtos", erro);
+export async function criarPedido(novoPedido) {
+  try {
+    const pedido = await Pedido.create({
+      valor_total: novoPedido.valorTotal,
+      estado: "ENCAMINHADO"
+    });
+
+    for (const prod of novoPedido.produtos) {
+      const produto = await Produto.findByPk(prod.id);
+      if (produto) {
+        console.log("Adicionando produto ao pedido:", produto.nome);
+        await pedido.addProduto(produto, {
+          through: {
+            quantidade: prod.quantidade,
+            preco: produto.preco
+          }
+        });
+      }
     }
+
+    console.log("Pedido criado com sucesso!");
+    return pedido;
+  } catch (erro) {
+    console.log("Erro ao criar pedido:", erro);
+    throw erro;
+  }
 }
 
-// Função para buscar um produto específico pelo ID
-export async function lerProdutosPorID(id) {
-    try {
-        // Busca um produto pela chave primária (PK)
-        const resultado = await Produto.findByPk(id);
-        console.log(`Produto consultado com sucesso!`, resultado);
-    } catch (erro) {
-        console.log("Erro ao buscar o produto", erro);
-    }
-}
-
-// Função para atualizar um produto específico pelo ID
-export async function atualizarProdutoPorID(id, dadosProduto) {
-    try {
-        // Atualiza os dados do produto onde o id for igual ao informado
-        const resultado = await Produto.update(dadosProduto, { where: { id: id } });
-        console.log(`Produto atualizado com sucesso!`, resultado);
-        return resultado;
-    } catch (erro) {
-        console.log("Erro ao atualizar o produto", erro);
-        throw erro; // Lança o erro para tratamento
-    }
-}
-
-// Função para deletar um produto específico pelo ID
-export async function deletarProdutoPorID(id) {
-    try {
-        // Remove o registro do banco onde o id for igual ao informado
-        const resultado = await Produto.destroy({ where: { id: id } });
-        console.log(`Produto deletado com sucesso!`, resultado);
-    } catch (erro) {
-        console.log("Erro ao deletar o produto", erro);
-        throw erro;
-    }
+export async function lerPedidos() {
+  try {
+    const resultado = await produtosPedido.findAll({ raw: true });
+    console.log("Produtos em pedidos:", resultado);
+    return resultado;
+  } catch (erro) {
+    console.log("Erro ao consultar pedidos:", erro);
+    throw erro;
+  }
 }

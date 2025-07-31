@@ -1,79 +1,69 @@
-// Importa o módulo HTTP nativo do Node.js para criar o servidor
 import http from "http";
-
-// Importa o módulo `fs` (file system) para manipulação de arquivos (ler, escrever, etc.)
 import fs from "fs";
-
-// Importa as rotas definidas no arquivo routes.js (responsável por tratar os endpoints da API)
 import rotas from "./routes.js";
-
-// Importa o SQLite3, um banco de dados leve baseado em arquivos
 import sqlite3 from "sqlite3";
+import express from "express";
 
-// Importa a instância do Sequelize já configurada com SQLite
-import { sequelize } from "./models.js";
+import {
+  sequelize,
+  criarProduto,
+  criarPedido,
+  lerPedidos
+} from "./models.js";
 
 
-// Inicializa o banco SQLite, apontando para o arquivo tic.db
+
+// Inicializa o banco SQLite
 const db = new sqlite3.Database("./tic.db", (erro) => {
     if (erro) {
-        console.log("Falha ao inicializar o banco de dados");
+        console.log("Falha ao inicializar o banco de dado");
         return;
     }
-    console.log("Banco de dados inicializado corretamente");
+    console.log("Banco de dados inicializado");
 });
 
 
-// Cria e escreve um conteúdo no arquivo mensagem.txt
-fs.writeFile(
-    "./mensagem.txt",                      // Caminho e nome do arquivo
-    "ola tic em trilhas do arquivo",       // Conteúdo que será gravado
-    "utf-8",                               // Codificação de caracteres
-    (erro) => {                            // Função callback para tratar o resultado
-        if (erro) {
-            console.log("Falha ao escrever o arquivo", erro);
-            return;
-        }
-        console.log("Arquivo criado com sucesso");
-    }
-);
+// Cria e escreve um conteúdo no arquivo
+fs.writeFile("./mensagem.txt", "ola tic em trilhas do arquivo", "utf-8", (erro) => {
+  if (erro) console.log("Erro ao criar arquivo:", erro);
+  else console.log("Arquivo criado com sucesso");
+});
 
+// Lê o conteúdo e inicia o servidor
+fs.readFile("./mensagem.txt", "utf-8", async (erro, conteudo) => {
+  if (erro) return console.log("Erro ao ler arquivo:", erro);
 
-// Lê o conteúdo do arquivo mensagem.txt
-fs.readFile(
-    "./mensagem.txt",                      // Caminho e nome do arquivo
-    "utf-8",                               // Codificação para ler corretamente o texto
-    (erro, conteudo) => {                  // Callback que retorna erro ou conteúdo
-        if (erro) {
-            console.log("Falha na leitura do arquivo", erro);
-            return;
-        }
+  console.log(`Conteúdo do arquivo: ${conteudo}`);
+  await iniciaServidor(conteudo);
+});
 
-        console.log(`Conteúdo do arquivo: ${conteudo}`);
-
-        // Após ler o conteúdo do arquivo, inicializa o servidor HTTP passando esse conteúdo
-        iniciaServidor(conteudo);
-    }
-);
-
-
-// Função responsável por iniciar o servidor
 async function iniciaServidor(conteudo) {
-    // Garante que todas as tabelas estejam sincronizadas com o banco de dados antes de iniciar o servidor
-    await sequelize.sync();
+  await sequelize.sync({ force: true }); // recria as tabelas
+  console.log("Banco sincronizado");
 
-    // Cria o servidor HTTP
-    const servidor = http.createServer((req, res) => {
-        // A cada requisição, chama a função rotas passando a requisição, resposta e o conteúdo do arquivo lido
-        rotas(req, res, { conteudo });
-    });
+  // Insere produtos
+  const p1 = await criarProduto({ nome: "Mouse", preco: 29.9 });
+  const p2 = await criarProduto({ nome: "Teclado", preco: 59.9 });
 
-    // Define a porta e o host do servidor
-    const porta = 3000;
-    const host = "localhost";
+  // Cria pedido com produtos
+  await criarPedido({
+    valorTotal: 89.8,
+    produtos: [
+      { id: p1.id, quantidade: 1 },
+      { id: p2.id, quantidade: 1 }
+    ]
+  });
 
-    // Inicia o servidor e escuta requisições HTTP na porta e host definidos
-    servidor.listen(porta, host, () => {
-        console.log(`Servidor executando em http://${host}:${porta}/`);
-    });
+  // Lista os dados da tabela de junção
+  await lerPedidos();
+
+  // Cria servidor HTTP (opcional)
+  const server = http.createServer((req, res) => {
+    res.end("Servidor online!");
+  });
+
+  const port = 3000;
+  server.listen(port, () => {
+    console.log(`Servidor executando em http://localhost:${port}/`);
+  });
 }
