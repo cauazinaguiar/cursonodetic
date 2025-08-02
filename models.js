@@ -118,3 +118,92 @@ export async function lerPedidos() {
     throw erro;
   }
 }
+
+export async function atualizarProdutoPorID(id, dadosProduto) {
+  try {
+    const produto = await Produto.findByPk(id);
+    if (!produto) {
+      return null;
+    }
+
+    if (dadosProduto.nome) {
+      produto.nome = dadosProduto.nome;
+    }
+
+    if (dadosProduto.preco) {
+      produto.preco = dadosProduto.preco;
+    }
+
+    await produto.save();
+    console.log("Produto atualizado com sucesso:", produto);
+
+    return produto;
+  } catch (erro) {
+    console.log("Erro ao atualizar produto:", erro);
+    throw erro;
+  }
+}
+
+
+export async function deletarProdutoPorID(id) {
+  try {
+    const produto = await Produto.findByPk(id);
+    if (!produto) {
+      return false;
+    }
+
+    await produto.destroy();
+    console.log("Produto deletado com sucesso:", produto.nome);
+    return true;
+  } catch (erro) {
+    console.log("Erro ao deletar produto:", erro);
+    throw erro;
+  }
+}
+
+export async function lerProdutos() {
+  try {
+    const produtos = await Produto.findAll({ raw: true });
+    console.log("Produtos encontrados:", produtos);
+    return produtos;
+  } catch (erro) {
+    console.log("Erro ao buscar produtos:", erro);
+    throw erro;
+  }
+}
+
+
+export async function lerProdutosPorID(id) {
+  try {
+    const produto = await Produto.findByPk(id, { raw: true });
+    console.log(`Produto com ID ${id}:`, produto);
+    return produto;
+  } catch (erro) {
+    console.log("Erro ao buscar produto por ID:", erro);
+    throw erro;
+  }
+}
+
+export async function lerPedidoPorID(id) {
+  try {
+    const pedido = await Pedido.findByPk(id, {
+      include: {
+        model: Produto,
+        through: {
+          attributes: ["quantidade", "preco"] // Campos extras da tabela de junção
+        }
+      }
+    });
+
+    if (!pedido) return null;
+
+    // Converte para objeto limpo e imprime no terminal
+    const resultado = pedido.toJSON();
+    console.log(`Pedido com ID ${id}:`, resultado);
+
+    return resultado;
+  } catch (erro) {
+    console.log("Erro ao buscar pedido por ID:", erro);
+    throw erro;
+  }
+}
